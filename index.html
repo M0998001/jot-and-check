@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jot &amp; Check</title>
+<meta name="description" content="A simple grocery list: type it or write it by hand, tick items off, and reuse past lists.">
+<meta name="theme-color" content="#2f7d4f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Jot &amp; Check">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<style>
+:root{
+  --bg:#f4f1ea; --card:#ffffff; --text:#1f2420; --muted:#6b716c; --line:#e5e0d6;
+  --accent:#2f7d4f; --accent-ink:#ffffff; --danger:#b3412e; --chip:#e6ede7; --gold:#c99a1e;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#121412; --card:#1d201d; --text:#eceeeb; --muted:#9aa19b; --line:#2c302c;
+    --accent:#5cb27f; --accent-ink:#0c140f; --danger:#e2735f; --chip:#243027; --gold:#e3b84a; }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font:17px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 28px) env(safe-area-inset-left);min-height:100vh}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.wrap{max-width:780px;margin:0 auto;padding:0 16px}
+header.bar{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;gap:6px;
+  padding:10px 12px 8px;max-width:780px;margin:0 auto}
+.brand{flex:1;margin:4px 6px;font-size:30px;letter-spacing:-.02em}
+.brand span{color:var(--accent)}
+.icon-btn{width:42px;height:42px;flex:none;border:0;border-radius:12px;background:transparent;font-size:21px;
+  display:grid;place-items:center;padding:0;color:var(--text)}
+.icon-btn:active{background:var(--chip)}
+.icon-btn.sm{width:36px;height:36px;font-size:16px;color:var(--muted)}
+.icon-btn.fav{color:var(--gold)}
+.btn{border:0;border-radius:12px;padding:10px 16px;background:var(--chip);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn:active{filter:brightness(.93)}
+.link{border:0;background:none;color:var(--accent);font-weight:600;padding:4px 6px}
+.empty{color:var(--muted);text-align:center;padding:28px 18px;margin:0}
+.section-title{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--muted);margin:22px 4px 8px}
+.tiny{font-size:14px;color:var(--muted);margin:2px 4px 10px}
+
+/* Home */
+.new-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0 4px}
+.new-card{border:0;border-radius:18px;background:var(--card);padding:18px 14px;text-align:left;display:flex;flex-direction:column;gap:2px;
+  box-shadow:0 1px 0 var(--line),0 6px 18px rgba(0,0,0,.04)}
+.new-card .big{font-size:28px;line-height:1;margin-bottom:8px;color:var(--accent)}
+.new-card b{font-size:17px}
+.new-card small{color:var(--muted);font-size:14px}
+.new-card:active{transform:scale(.98)}
+.hint{display:flex;gap:10px;align-items:flex-start;background:var(--chip);border-radius:14px;padding:12px 8px 12px 14px;margin:4px 0 12px;font-size:15px}
+.hint p{margin:0;flex:1}
+.list-card{display:flex;align-items:center;gap:2px;background:var(--card);border-radius:16px;padding:6px 6px 6px 4px;margin-bottom:10px;
+  box-shadow:0 1px 0 var(--line)}
+.list-card .open{flex:1;min-width:0;display:flex;align-items:center;gap:12px;border:0;background:none;text-align:left;padding:8px 6px 8px 10px}
+.kind{font-size:22px;width:34px;height:34px;border-radius:10px;background:var(--chip);color:var(--accent);display:grid;place-items:center;flex:none}
+.info{display:flex;flex-direction:column;min-width:0;flex:1}
+.name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{font-size:14px;color:var(--muted)}
+.prog{height:4px;border-radius:4px;background:var(--line);margin-top:6px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent);border-radius:4px}
+
+/* Typed list */
+.title-input{flex:1;min-width:0;font-size:22px;font-weight:700;border:0;background:transparent;padding:6px 6px;border-radius:10px}
+.title-input:focus{outline:none;background:var(--card)}
+.add-bar{display:flex;gap:8px;background:var(--card);border-radius:16px;padding:6px;margin:4px 0 10px;box-shadow:0 1px 0 var(--line)}
+.add-bar input{flex:1;min-width:0;border:0;background:transparent;padding:10px 10px;font-size:17px}
+.add-bar input:focus{outline:none}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:0 0 10px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;border:0;border-radius:999px;padding:7px 13px;background:var(--chip);font-size:15px}
+.storebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:0 4px 12px}
+select{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 8px;font-size:15px}
+.items{background:var(--card);border-radius:16px;overflow:hidden;box-shadow:0 1px 0 var(--line)}
+.row{display:flex;align-items:center;gap:4px;padding:2px 4px 2px 0;border-bottom:1px solid var(--line);background:var(--card);position:relative}
+.row:last-child{border-bottom:0}
+.handle,.handle-sp{width:34px;height:46px;flex:none}
+.handle{display:grid;place-items:center;color:var(--muted);touch-action:none;cursor:grab;font-size:20px;user-select:none;-webkit-user-select:none}
+.check{width:28px;height:28px;flex:none;border-radius:8px;border:2px solid var(--muted);background:transparent;padding:0;
+  display:grid;place-items:center;font-size:17px;font-weight:800;line-height:1}
+.check.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.row .txt{flex:1;min-width:0;border:0;background:transparent;padding:11px 6px;font-size:17px}
+.row .txt:focus{outline:none}
+.row.done .txt{text-decoration:line-through;color:var(--muted)}
+.row.dragging{z-index:3;box-shadow:0 10px 26px rgba(0,0,0,.2);transition:none}
+.row.shift{transition:transform .15s ease}
+
+/* Handwritten */
+.toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 8px}
+.tool{border:0;border-radius:11px;background:var(--chip);padding:8px 11px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.tool.on{background:var(--accent);color:var(--accent-ink)}
+.swatch{width:20px;height:20px;border-radius:50%;display:inline-block;box-shadow:inset 0 0 0 2px rgba(255,255,255,.7)}
+.spacer{flex:1}
+.paper{background:#fffdf5;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,.14);overflow:hidden}
+#cv{display:block;width:100%;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.more{margin:14px auto 0;display:flex}
+
+/* Sheet + toast */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:560px;border-radius:22px 22px 0 0;padding:20px 20px calc(env(safe-area-inset-bottom) + 20px);
+  max-height:90vh;overflow:auto}
+@media (min-width:700px){.sheet-bg{align-items:center}.sheet{border-radius:22px}}
+.sheet h2{margin:0 0 12px}
+.field{display:flex;flex-direction:column;gap:6px;background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px}
+.field small{color:var(--muted);font-size:14px}
+.field .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.sheet .done-btn{width:100%;margin-top:4px}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translate(-50%,30px);opacity:0;
+  background:#222;color:#fff;padding:10px 16px;border-radius:12px;font-size:15px;transition:.25s;pointer-events:none;z-index:30;max-width:90vw}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+(() => {
+'use strict';
+
+const APP_NAME = 'Jot & Check';
+const KEY = 'jotcheck.v1';
+
+// "Check at store" opens the store's own product search for the item.
+const STORES = {
+  kroger:  { name: 'Kroger',  url: q => `https://www.kroger.com/search?query=${q}` },
+  walmart: { name: 'Walmart', url: q => `https://www.walmart.com/search?q=${q}` },
+  target:  { name: 'Target',  url: q => `https://www.target.com/s?searchTerm=${q}` },
+  costco:  { name: 'Costco',  url: q => `https://www.costco.com/CatalogSearch?keyword=${q}` },
+};
+const INK_COLORS = ['#1d2a44', '#1f5fbf', '#c0392b', '#2f7d4f'];
+
+const app = document.getElementById('app');
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+/* ---------- storage ---------- */
+const defaults = () => ({ lists: [], history: {}, settings: { store: 'kroger', fingerDraw: true, hideInstall: false } });
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (s && Array.isArray(s.lists)) {
+      s.history = s.history || {};
+      s.settings = Object.assign(defaults().settings, s.settings || {});
+      return s;
+    }
+  } catch (e) {}
+  return defaults();
+}
+let state = load();
+let saveTimer = null;
+function save(now) {
+  clearTimeout(saveTimer);
+  const run = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { toast('Couldn’t save — storage may be full'); } };
+  if (now) run(); else saveTimer = setTimeout(run, 250);
+}
+addEventListener('pagehide', () => save(true));
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+const getList = id => state.lists.find(l => l.id === id);
+function touch(l) { l.updated = Date.now(); save(); }
+function fmtDate(ts) {
+  const d = new Date(ts), now = new Date();
+  const o = d.getFullYear() === now.getFullYear() ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' };
+  return d.toLocaleDateString(undefined, o);
+}
+function remember(text) {
+  const k = text.toLowerCase();
+  const h = state.history[k] || (state.history[k] = { text, n: 0, t: 0 });
+  h.text = text; h.n++; h.t = Date.now();
+}
+
+/* ---------- ink geometry (shared) ---------- */
+const W = 1000, S = 80, M = 110, T = 50;   // logical page width, line spacing, margin, top
+const inkHeight = ink => T + ink.lines * S + 40;
+function lineBounds(ink) {
+  const m = new Map();
+  for (const s of ink.strokes) {
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (const q of s.p) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; }
+    const li = Math.floor(((y0 + y1) / 2 - T) / S);
+    if (li < 0 || li >= ink.lines) continue;
+    const b = m.get(li);
+    if (b) { b[0] = Math.min(b[0], x0); b[1] = Math.max(b[1], x1); } else m.set(li, [x0, x1]);
+  }
+  return m;
+}
+function progress(l) {
+  if (l.type === 'ink') {
+    const used = lineBounds(l.ink);
+    const total = new Set([...used.keys(), ...l.ink.checked]).size;
+    return { done: l.ink.checked.length, total };
+  }
+  return { done: l.items.filter(i => i.done).length, total: l.items.length };
+}
+
+/* ---------- routing ---------- */
+let cleanup = null;
+function go(h) { if (location.hash === h) route(); else location.hash = h; }
+addEventListener('hashchange', route);
+function route() {
+  if (cleanup) { cleanup(); cleanup = null; }
+  app.onclick = app.onchange = app.oninput = app.onsubmit = app.onpointerdown = app.onkeydown = null;
+  const m = location.hash.match(/^#\/list\/(.+)$/);
+  const l = m && getList(m[1]);
+  if (l) (l.type === 'ink' ? renderInk : renderTyped)(l); else renderHome();
+  scrollTo(0, 0);
+}
+
+function newList(type) {
+  const l = { id: uid(), type, name: 'Groceries', created: Date.now(), updated: Date.now(), fav: false,
+    store: state.settings.store, items: [], ink: { strokes: [], checked: [], lines: 20 } };
+  state.lists.unshift(l); save(); go('#/list/' + l.id);
+}
+function shopAgain(l) {
+  const c = JSON.parse(JSON.stringify(l));
+  c.id = uid(); c.created = c.updated = Date.now(); c.fav = false;
+  c.items.forEach(i => { i.id = uid(); i.done = false; });
+  c.ink.checked = [];
+  state.lists.unshift(c); save();
+  toast('Fresh copy ready — everything unchecked');
+  go('#/list/' + c.id);
+}
+
+/* ---------- home ---------- */
+function renderHome() {
+  document.title = APP_NAME;
+  const lists = [...state.lists].sort((a, b) => b.updated - a.updated);
+  const favs = lists.filter(l => l.fav), rest = lists.filter(l => !l.fav);
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  app.innerHTML = `
+  <header class="bar"><h1 class="brand">Jot <span>&amp;</span> Check</h1>
+    <button class="icon-btn" data-act="settings" aria-label="Settings">⚙︎</button></header>
+  <main class="wrap">
+    ${!standalone && !state.settings.hideInstall ? `<div class="hint"><p><b>Install it:</b> in Safari tap <b>Share</b> → <b>Add to Home Screen</b>. It then opens like an app and works offline.</p>
+      <button class="icon-btn sm" data-act="hide-install" aria-label="Dismiss">✕</button></div>` : ''}
+    <div class="new-row">
+      <button class="new-card" data-act="new-typed"><span class="big">☑︎</span><b>Typed list</b><small>Type items, tick them off</small></button>
+      <button class="new-card" data-act="new-ink"><span class="big">✎</span><b>Handwritten list</b><small>Write freehand, tick lines off</small></button>
+    </div>
+    ${favs.length ? `<div class="section-title">★ Favorites</div>${favs.map(card).join('')}` : ''}
+    ${rest.length ? `<div class="section-title">${favs.length ? 'Other lists' : 'Your lists'}</div>${rest.map(card).join('')}` : ''}
+    ${!lists.length ? `<p class="empty">No lists yet. Start one above.<br>After a trip, tap <b>↻</b> on a list to shop the same list again.</p>` : ''}
+  </main>`;
+
+  app.onclick = e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const c = b.closest('[data-id]'); const l = c && getList(c.dataset.id);
+    switch (b.dataset.act) {
+      case 'new-typed': return newList('typed');
+      case 'new-ink': return newList('ink');
+      case 'settings': return openSettings();
+      case 'hide-install': state.settings.hideInstall = true; save(); return renderHome();
+      case 'open': return go('#/list/' + l.id);
+      case 'fav': l.fav = !l.fav; save(); return renderHome();
+      case 'again': return shopAgain(l);
+      case 'delete':
+        if (confirm(`Delete “${l.name || 'Untitled'}”?`)) { state.lists = state.lists.filter(x => x !== l); save(); renderHome(); }
+        return;
+    }
+  };
+}
+function card(l) {
+  const p = progress(l);
+  return `<div class="list-card" data-id="${l.id}">
+    <button class="open" data-act="open"><span class="kind">${l.type === 'ink' ? '✎' : '☑︎'}</span>
+      <span class="info"><span class="name">${esc(l.name || 'Untitled')}</span>
+      <span class="meta">${p.total ? `${p.done} of ${p.total} done · ` : ''}${fmtDate(l.updated)}</span>
+      ${p.total ? `<span class="prog"><i style="width:${Math.round(p.done / p.total * 100)}%"></i></span>` : ''}</span></button>
+    <button class="icon-btn sm ${l.fav ? 'fav' : ''}" data-act="fav" aria-label="${l.fav ? 'Unfavorite' : 'Favorite'}">${l.fav ? '★' : '☆'}</button>
+    <button class="icon-btn sm" data-act="again" aria-label="Shop again" title="Shop again">↻</button>
+    <button class="icon-btn sm" data-act="delete" aria-label="Delete">🗑</button>
+  </div>`;
+}
+
+/* ---------- shared header bits ---------- */
+function headerHTML(l) {
+  return `<header class="bar"><button class="icon-btn" data-act="back" aria-label="Back">‹</button>
+    <input class="title-input" id="title" value="${esc(l.name)}" aria-label="List name" enterkeyhint="done" autocomplete="off">
+    <button class="icon-btn" data-act="share" aria-label="Share">⤴︎</button></header>`;
+}
+function wireTitle(l) {
+  const t = $('#title');
+  t.addEventListener('input', () => { l.name = t.value; touch(l); document.title = (l.name || 'List') + ' – ' + APP_NAME; });
+  t.addEventListener('keydown', e => { if (e.key === 'Enter') t.blur(); });
+  t.addEventListener('blur', () => { if (!t.value.trim()) { l.name = 'Groceries'; t.value = l.name; touch(l); } });
+}
+
+/* ---------- typed list ---------- */
+function renderTyped(l) {
+  document.title = l.name + ' – ' + APP_NAME;
+  app.innerHTML = headerHTML(l) + `
+  <main class="wrap">
+    <form class="add-bar" id="addForm" autocomplete="off">
+      <input id="addInput" list="hist" placeholder="Add items, e.g. milk, eggs" enterkeyhint="done" autocapitalize="sentences" aria-label="New item">
+      <button class="btn primary" type="submit">Add</button>
+    </form>
+    <datalist id="hist"></datalist>
+    <div class="chips" id="chips"></div>
+    <div class="storebar">Check stock at
+      <select id="store" aria-label="Store">${Object.entries(STORES).map(([k, s]) => `<option value="${k}" ${k === l.store ? 'selected' : ''}>${s.name}</option>`).join('')}</select>
+      <span>with 🔍</span></div>
+    <div id="todo"></div>
+    <div id="doneWrap"></div>
+  </main>`;
+  wireTitle(l);
+
+  const input = $('#addInput');
+  function drawItems() {
+    const todo = l.items.filter(i => !i.done), done = l.items.filter(i => i.done);
+    $('#todo').innerHTML = todo.length
+      ? `<div class="items" id="todoItems">${todo.map(i => row(i, true)).join('')}</div>`
+      : `<p class="empty">${l.items.length ? 'All done! 🎉' : 'Your list is empty. Add items above or tap a suggestion.'}</p>`;
+    $('#doneWrap').innerHTML = done.length
+      ? `<div class="section-title"><span>In the cart (${done.length})</span><span>
+           <button class="link" data-act="uncheck-all">Uncheck all</button><button class="link" data-act="clear-done">Clear</button></span></div>
+         <div class="items">${done.map(i => row(i, false)).join('')}</div>` : '';
+    const on = new Set(l.items.map(i => i.text.toLowerCase()));
+    const hist = Object.values(state.history).sort((a, b) => b.n - a.n || b.t - a.t);
+    $('#hist').innerHTML = hist.slice(0, 200).map(h => `<option value="${esc(h.text)}">`).join('');
+    const sug = hist.filter(h => !on.has(h.text.toLowerCase())).slice(0, 14);
+    $('#chips').innerHTML = sug.map(h => `<button class="chip" data-act="quick" data-text="${esc(h.text)}">＋ ${esc(h.text)}</button>`).join('');
+  }
+  const row = (i, drag) => `<div class="row ${i.done ? 'done' : ''}" data-iid="${i.id}">
+      ${drag ? '<span class="handle" aria-label="Drag to reorder">≡</span>' : '<span class="handle-sp"></span>'}
+      <button class="check ${i.done ? 'on' : ''}" data-act="toggle" aria-label="${i.done ? 'Uncheck' : 'Check off'} ${esc(i.text)}">${i.done ? '✓' : ''}</button>
+      <input class="txt" value="${esc(i.text)}" aria-label="Item" enterkeyhint="done">
+      <button class="icon-btn sm" data-act="find" aria-label="Check ${esc(i.text)} at store">🔍</button>
+      <button class="icon-btn sm" data-act="remove" aria-label="Remove ${esc(i.text)}">✕</button></div>`;
+  const item = el => { const r = el.closest('[data-iid]'); return r && l.items.find(i => i.id === r.dataset.iid); };
+
+  function addItems(raw) {
+    const parts = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    if (!parts.length) return;
+    const at = l.items.filter(i => !i.done).length;
+    l.items.splice(at, 0, ...parts.map(text => ({ id: uid(), text, done: false })));
+    parts.forEach(remember); touch(l); drawItems();
+  }
+
+  app.onsubmit = e => { e.preventDefault(); addItems(input.value); input.value = ''; input.focus(); };
+  app.onchange = e => {
+    if (e.target.id === 'store') { l.store = state.settings.store = e.target.value; touch(l); return; }
+    if (e.target.classList.contains('txt')) {
+      const i = item(e.target); if (!i) return;
+      const v = e.target.value.trim();
+      if (v) { i.text = v; } else { l.items = l.items.filter(x => x !== i); drawItems(); }
+      touch(l);
+    }
+  };
+  app.onkeydown = e => { if (e.key === 'Enter' && e.target.classList.contains('txt')) e.target.blur(); };
+  app.onclick = e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const i = item(b);
+    switch (b.dataset.act) {
+      case 'back': return go('#/');
+      case 'share': return shareText(l);
+      case 'quick': return addItems(b.dataset.text);
+      case 'toggle': {
+        l.items = l.items.filter(x => x !== i);
+        i.done = !i.done;
+        if (i.done) l.items.push(i); else l.items.splice(l.items.filter(x => !x.done).length, 0, i);
+        touch(l); return drawItems();
+      }
+      case 'remove': l.items = l.items.filter(x => x !== i); touch(l); return drawItems();
+      case 'find': return void open(STORES[l.store || 'kroger'].url(encodeURIComponent(i.text)), '_blank', 'noopener');
+      case 'clear-done': l.items = l.items.filter(x => !x.done); touch(l); return drawItems();
+      case 'uncheck-all': l.items.forEach(x => x.done = false); touch(l); return drawItems();
+    }
+  };
+  app.onpointerdown = e => { const h = e.target.closest('.handle'); if (h) startDrag(e, h.closest('.row')); };
+
+  function startDrag(e, rowEl) {
+    e.preventDefault();
+    const rows = [...rowEl.parentElement.children];
+    const from = rows.indexOf(rowEl), startY = e.clientY;
+    const rects = rows.map(r => r.getBoundingClientRect()), h = rects[from].height;
+    let to = from;
+    rowEl.classList.add('dragging');
+    rows.forEach(r => r !== rowEl && r.classList.add('shift'));
+    const move = ev => {
+      const dy = ev.clientY - startY;
+      rowEl.style.transform = `translateY(${dy}px)`;
+      const cy = rects[from].top + h / 2 + dy;
+      to = 0; rects.forEach((r, i) => { if (i !== from && r.top + r.height / 2 < cy) to++; });
+      rows.forEach((r, i) => {
+        if (i === from) return;
+        r.style.transform = (from < i && i <= to) ? `translateY(${-h}px)` : (to <= i && i < from) ? `translateY(${h}px)` : '';
+      });
+    };
+    const up = () => {
+      removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+      const todo = l.items.filter(i => !i.done), done = l.items.filter(i => i.done);
+      const [m] = todo.splice(from, 1); todo.splice(to, 0, m);
+      l.items = [...todo, ...done];
+      if (to !== from) touch(l);
+      drawItems();
+    };
+    addEventListener('pointermove', move); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  }
+  drawItems();
+}
+
+function shareText(l) {
+  const text = `${l.name}\n` + l.items.map(i => (i.done ? '☑ ' : '☐ ') + i.text).join('\n');
+  if (navigator.share) navigator.share({ title: l.name, text }).catch(() => {});
+  else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast('List copied'), () => toast('Couldn’t copy'));
+}
+
+/* ---------- handwritten list ---------- */
+function renderInk(l) {
+  document.title = l.name + ' – ' + APP_NAME;
+  const ink = l.ink || (l.ink = { strokes: [], checked: [], lines: 20 });
+  app.innerHTML = headerHTML(l) + `
+  <main class="wrap">
+    <div class="toolbar" id="toolbar">
+      ${INK_COLORS.map((c, i) => `<button class="tool ${i === 0 ? 'on' : ''}" data-act="pen" data-c="${c}" aria-label="Pen ${i + 1}"><span class="swatch" style="background:${c}"></span></button>`).join('')}
+      <button class="tool" data-act="eraser">⌫ Eraser</button>
+      <button class="tool" data-act="undo">↶ Undo</button>
+      <button class="tool" data-act="finger" id="fingerBtn"></button>
+      <span class="spacer"></span>
+      <button class="tool" data-act="clear">Clear</button>
+    </div>
+    <p class="tiny">Write one item per line. Tap the box beside a line to tick it off.</p>
+    <div class="paper"><canvas id="cv" aria-label="Handwriting page"></canvas></div>
+    <button class="btn more" data-act="more">＋ More lines</button>
+  </main>`;
+  wireTitle(l);
+
+  const cv = $('#cv'), ctx = cv.getContext('2d');
+  let scale = 1, dpr = 1, tool = 'pen', color = INK_COLORS[0], cur = null, tap = null, sawPen = false;
+  const undo = [];
+  const fingerBtn = $('#fingerBtn');
+  const setFingerLabel = () => fingerBtn.textContent = state.settings.fingerDraw ? '☝︎ Finger draws' : '☝︎ Finger scrolls';
+  setFingerLabel();
+
+  function size() {
+    const w = cv.parentElement.clientWidth; if (!w) return;
+    scale = w / W;
+    const h = inkHeight(ink) * scale;
+    dpr = Math.min(devicePixelRatio || 1, 3, Math.sqrt(15e6 / (w * h)));   // stay under iOS canvas size limit
+    cv.style.height = h + 'px';
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    draw();
+  }
+  function draw() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+    renderPage(ctx, ink);
+  }
+  const r1 = n => Math.round(n * 10) / 10;
+  const pt = e => {
+    const r = cv.getBoundingClientRect();
+    return [r1((e.clientX - r.left) / scale), r1((e.clientY - r.top) / scale),
+      e.pointerType === 'pen' ? Math.round((e.pressure || .5) * 100) / 100 : .5];
+  };
+
+  function eraseAt(q) {
+    let hit = false;
+    for (let i = ink.strokes.length - 1; i >= 0; i--) {
+      const s = ink.strokes[i];
+      if (s.p.some(p => Math.hypot(p[0] - q[0], p[1] - q[1]) < 18 + s.w)) { cur.removed.push({ s, i }); ink.strokes.splice(i, 1); hit = true; }
+    }
+    if (hit) draw();
+  }
+  function toggleLine(li, record = true) {
+    const k = ink.checked.indexOf(li);
+    if (k >= 0) ink.checked.splice(k, 1); else ink.checked.push(li);
+    if (record) undo.push({ t: 'check', li });
+    touch(l); draw();
+  }
+
+  cv.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'pen') sawPen = true;
+    const q = pt(e);
+    if (q[0] < M) { tap = { id: e.pointerId, x: e.clientX, y: e.clientY, q }; return; }
+    if (e.pointerType === 'touch' && (sawPen || !state.settings.fingerDraw)) return;   // palm rejection / scroll mode
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (cur) return;
+    try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    if (tool === 'eraser') { cur = { id: e.pointerId, erase: true, removed: [] }; eraseAt(q); return; }
+    cur = { id: e.pointerId, s: { c: color, w: 4.5, p: [q] } };
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(q[0], q[1], 4.5 * (.5 + q[2]) / 2, 0, 7); ctx.fill();
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!cur || e.pointerId !== cur.id) return;
+    const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
+    for (const ev of (evs.length ? evs : [e])) {
+      const q = pt(ev);
+      if (cur.erase) { eraseAt(q); continue; }
+      const p = cur.s.p, a = p[p.length - 1];
+      if (Math.hypot(q[0] - a[0], q[1] - a[1]) < 1.5) continue;
+      p.push(q);
+      ctx.strokeStyle = cur.s.c; ctx.lineCap = 'round'; ctx.lineWidth = cur.s.w * (.5 + (a[2] + q[2]) / 2);
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
+    }
+  });
+  const end = e => {
+    if (tap && e.pointerId === tap.id) {
+      if (e.type === 'pointerup' && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 12) {
+        const li = Math.floor((tap.q[1] - T) / S);
+        if (li >= 0 && li < ink.lines) toggleLine(li);
+      }
+      tap = null; return;
+    }
+    if (!cur || e.pointerId !== cur.id) return;
+    if (cur.erase) { if (cur.removed.length) { undo.push({ t: 'erase', items: cur.removed }); touch(l); } }
+    else { ink.strokes.push(cur.s); undo.push({ t: 'add', s: cur.s }); touch(l); }
+    cur = null; draw();
+  };
+  cv.addEventListener('pointerup', end);
+  cv.addEventListener('pointercancel', end);
+  // Stop the page from scrolling while writing (always for Apple Pencil; for fingers when "Finger draws" is on)
+  const block = e => {
+    const stylus = [...e.touches].some(t => t.touchType === 'stylus');
+    if (stylus || (state.settings.fingerDraw && !sawPen)) e.preventDefault();
+  };
+  cv.addEventListener('touchstart', block, { passive: false });
+  cv.addEventListener('touchmove', block, { passive: false });
+
+  app.onclick = e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    switch (b.dataset.act) {
+      case 'back': return go('#/');
+      case 'share': return shareInk(l);
+      case 'pen':
+        tool = 'pen'; color = b.dataset.c;
+        $('#toolbar').querySelectorAll('.tool').forEach(t => t.classList.toggle('on', t === b));
+        return;
+      case 'eraser':
+        tool = 'eraser';
+        $('#toolbar').querySelectorAll('.tool').forEach(t => t.classList.toggle('on', t === b));
+        return;
+      case 'finger': state.settings.fingerDraw = !state.settings.fingerDraw; sawPen = false; save(); setFingerLabel();
+        toast(state.settings.fingerDraw ? 'Fingers now write on the page' : 'Fingers now scroll — Apple Pencil still writes'); return;
+      case 'undo': {
+        const a = undo.pop(); if (!a) return toast('Nothing to undo');
+        if (a.t === 'add') { const i = ink.strokes.lastIndexOf(a.s); if (i >= 0) ink.strokes.splice(i, 1); }
+        else if (a.t === 'erase') a.items.slice().reverse().forEach(({ s, i }) => ink.strokes.splice(Math.min(i, ink.strokes.length), 0, s));
+        else if (a.t === 'clear') { ink.strokes = a.strokes; ink.checked = a.checked; }
+        else if (a.t === 'check') return toggleLine(a.li, false);
+        touch(l); return draw();
+      }
+      case 'clear':
+        if (!ink.strokes.length && !ink.checked.length) return;
+        if (!confirm('Erase everything on this page?')) return;
+        undo.push({ t: 'clear', strokes: ink.strokes, checked: ink.checked });
+        ink.strokes = []; ink.checked = []; touch(l); return draw();
+      case 'more': ink.lines += 10; touch(l); return size();
+    }
+  };
+
+  addEventListener('resize', size);
+  cleanup = () => removeEventListener('resize', size);
+  size();
+}
+
+function rr(c, x, y, w, h, r) {
+  c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+function drawStroke(c, s) {
+  const p = s.p; c.strokeStyle = s.c; c.fillStyle = s.c; c.lineCap = 'round'; c.lineJoin = 'round';
+  if (p.length === 1) { c.beginPath(); c.arc(p[0][0], p[0][1], s.w * (.5 + p[0][2]) / 2, 0, 7); c.fill(); return; }
+  for (let i = 1; i < p.length; i++) {
+    const a = p[i - 1], b = p[i];
+    c.lineWidth = s.w * (.5 + (a[2] + b[2]) / 2);
+    c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
+  }
+}
+function renderPage(c, ink) {
+  const H = inkHeight(ink), lb = lineBounds(ink);
+  c.fillStyle = '#fffdf5'; c.fillRect(0, 0, W, H);
+  c.strokeStyle = '#bcd3ee'; c.lineWidth = 2;
+  for (let i = 1; i <= ink.lines; i++) { const y = T + i * S; c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
+  c.strokeStyle = '#eaa9a9'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(M, 0); c.lineTo(M, H); c.stroke();
+  for (let i = 0; i < ink.lines; i++) {
+    const on = ink.checked.includes(i), used = lb.has(i);
+    const x = M / 2 - 19, y = T + i * S + S / 2 - 19;
+    c.globalAlpha = on || used ? 1 : .3;
+    rr(c, x, y, 38, 38, 9);
+    if (on) { c.fillStyle = '#2f7d4f'; c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 5; c.lineCap = 'round'; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(x + 9, y + 20); c.lineTo(x + 16, y + 28); c.lineTo(x + 30, y + 11); c.stroke(); }
+    else { c.strokeStyle = '#7d8a99'; c.lineWidth = 3; c.stroke(); }
+    c.globalAlpha = 1;
+  }
+  ink.strokes.forEach(s => drawStroke(c, s));
+  c.strokeStyle = 'rgba(192,57,43,.85)'; c.lineWidth = 4; c.lineCap = 'round';
+  for (const i of ink.checked) {
+    const b = lb.get(i); if (!b) continue;
+    const y = T + i * S + S * .5;
+    c.beginPath(); c.moveTo(Math.max(M + 6, b[0] - 10), y); c.lineTo(Math.min(W - 6, b[1] + 10), y); c.stroke();
+  }
+}
+function shareInk(l) {
+  const H = inkHeight(l.ink), k = 1.2;
+  const oc = document.createElement('canvas'); oc.width = W * k; oc.height = H * k;
+  const c = oc.getContext('2d'); c.scale(k, k); renderPage(c, l.ink);
+  oc.toBlob(async b => {
+    if (!b) return;
+    const f = new File([b], (l.name || 'list').replace(/[^\w\- ]+/g, '') + '.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { try { await navigator.share({ files: [f], title: l.name }); } catch (e) {} }
+    else { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = f.name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
+  }, 'image/png');
+}
+
+/* ---------- settings ---------- */
+function openSettings() {
+  const bg = document.createElement('div'); bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-label="Settings"><h2>Settings</h2>
+    <label class="field"><b>Default store for new lists</b>
+      <select id="sStore">${Object.entries(STORES).map(([k, s]) => `<option value="${k}" ${k === state.settings.store ? 'selected' : ''}>${s.name}</option>`).join('')}</select>
+      <small>The 🔍 button next to an item opens that store’s search so you can see if it’s in stock.</small></label>
+    <div class="field"><b>Backup</b>
+      <small>Lists are saved only on this device. Save a backup file to keep them safe or move them to another phone or iPad.</small>
+      <div class="btns"><button class="btn" data-s="export">Save backup</button>
+      <label class="btn">Restore backup<input type="file" id="sImport" accept="application/json,.json" hidden></label></div></div>
+    <div class="field"><b>Install on iPhone or iPad</b>
+      <small>Open this page in Safari, tap Share, then “Add to Home Screen”. It then opens like an app and works with no internet.</small></div>
+    <button class="btn primary done-btn" data-s="close">Done</button></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  bg.addEventListener('click', e => {
+    if (e.target === bg) return close();
+    const b = e.target.closest('[data-s]'); if (!b) return;
+    if (b.dataset.s === 'close') { close(); if (!location.hash.startsWith('#/list/')) renderHome(); }
+    if (b.dataset.s === 'export') exportBackup();
+  });
+  $('#sStore', bg).addEventListener('change', e => { state.settings.store = e.target.value; save(); });
+  $('#sImport', bg).addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (!data || !Array.isArray(data.lists)) throw 0;
+      const have = new Set(state.lists.map(l => l.id));
+      const add = data.lists.filter(l => l && l.id && !have.has(l.id) && (l.type === 'ink' || l.type === 'typed'))
+        .map(l => Object.assign({ items: [], ink: { strokes: [], checked: [], lines: 20 } }, l));
+      state.lists.push(...add);
+      for (const [k, h] of Object.entries(data.history || {})) {
+        const cur = state.history[k];
+        if (!cur) state.history[k] = h; else { cur.n += h.n || 0; cur.t = Math.max(cur.t, h.t || 0); }
+      }
+      save(true); toast(`Restored ${add.length} list${add.length === 1 ? '' : 's'}`); close(); renderHome();
+    } catch (err) { toast('That file isn’t a Jot & Check backup'); }
+  });
+}
+async function exportBackup() {
+  const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
+  const name = `jot-and-check-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const f = new File([blob], name, { type: 'application/json' });
+  if (navigator.canShare && navigator.canShare({ files: [f] })) { try { await navigator.share({ files: [f], title: 'Jot & Check backup' }); } catch (e) {} return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+/* ---------- start ---------- */
+route();
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+})();
+</script>
+</body>
+</html>
